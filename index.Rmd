@@ -1,0 +1,41 @@
+---
+title: "RNAseq project 2024"
+author: "Bernardo Chombo-Álvarez"
+date: "Viernes 9 de febrero 2024"
+output:
+  html_document:
+    toc: true
+    code_fold: show
+header-includes:
+   - \usepackage{setspace}
+   - \singlespacing
+   - \usepackage{paralist}
+   - \let\itemsize\compactitem
+fontsize: 11pt
+mainfont: Calibri
+sansfont: Calibri
+monofont: Calibri
+indent: true
+---
+
+# About the project
+Este proyecto tiene la finalidad de poner en práctica los conocimientos adquiridos en el módulo impartido por el Ph.D. Leonardo Collado-Torres para el análisis de datos de secuenciación masiva enfocado al análisis de datos de RNAseq. 
+
+
+## Dataset: **SRP073813**
+
+Los datos utilizados para este proyecto fueron obtenidos del estudio [Post-mortem molecular profiling of three psychiatric disorders](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-017-0458-5).  
+
+### Abstract 
+**Background**: Psychiatric disorders are multigenic diseases with complex etiology that contribute significantly to human morbidity and mortality. Although clinically distinct, several disorders share many symptoms, suggesting common underlying molecular changes exist that may implicate important regulators of pathogenesis and provide new therapeutic targets.
+
+**Methods**: We performed RNA sequencing on tissue from the anterior cingulate cortex, dorsolateral prefrontal cortex, and nucleus accumbens from three groups of 24 patients each diagnosed with schizophrenia, bipolar disorder, or major depressive disorder, and from 24 control subjects. We identified differentially expressed genes and validated the results in an independent cohort. Anterior cingulate cortex samples were also subjected to metabolomic analysis. ChIP-seq data were used to characterize binding of the transcription factor EGR1.
+
+**Results**: We compared molecular signatures across the three brain regions and disorders in the transcriptomes of post-mortem human brain samples. The most significant disease-related differences were in the anterior cingulate cortex of schizophrenia samples compared to controls. Transcriptional changes were assessed in an independent cohort, revealing the transcription factor EGR1 as significantly down-regulated in both cohorts and as a potential regulator of broader transcription changes observed in schizophrenia patients. Additionally, broad down-regulation of genes specific to neurons and concordant up-regulation of genes specific to astrocytes was observed in schizophrenia and bipolar disorder patients relative to controls. Metabolomic profiling identified disruption of GABA levels in schizophrenia patients.
+
+**Conclusions**: We provide a comprehensive post-mortem transcriptome profile of three psychiatric disorders across three brain regions. We highlight a high-confidence set of independently validated genes differentially expressed between schizophrenia and control patients in the anterior cingulate cortex and integrate transcriptional changes with untargeted metabolite profiling.
+
+# References
+1. Wilks, C., Zheng, S.C., Chen, F.Y. et al. recount3: summaries and queries for large-scale RNA-seq expression and splicing. Genome Biol 22, 323 (2021). https://doi.org/10.1186/s13059-021-02533-6
+2. Ramaker RC, Bowling KM, Lasseigne BN, Hagenauer MH, Hardigan AA, Davis NS, Gertz J, Cartagena PM, Walsh DM, Vawter MP, Jones EG, Schatzberg AF, Barchas JD, Watson SJ, Bunney BG, Akil H, Bunney WE, Li JZ, Cooper SJ, Myers RM. Post-mortem molecular profiling of three psychiatric disorders. Genome Med. 2017 Jul 28;9(1):72. doi: 10.1186/s13073-017-0458-5. PMID: 28754123; PMCID: PMC5534072.
+

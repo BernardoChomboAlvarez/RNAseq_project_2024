@@ -1,0 +1,180 @@
+---
+title: "Workflow: RNAseq project 2024"
+author: "Bernardo Chombo-Álvarez"
+date: "Viernes 9 de febrero 2024"
+output:
+  html_document:
+    toc: true
+    code_fold: show
+header-includes:
+   - \usepackage{setspace}
+   - \singlespacing
+   - \usepackage{paralist}
+   - \let\itemsize\compactitem
+fontsize: 11pt
+mainfont: Calibri
+sansfont: Calibri
+monofont: Calibri
+indent: true
+---
+
+# Introduction
+Este proyecto tiene la finalidad de poner en práctica los conocimientos adquiridos en el módulo impartido por el Ph.D. Leonardo Collado-Torres para el análisis de datos de secuenciación masiva enfocado al análisis de datos de RNAseq. 
+
+El dataset elegido con el ID de *recount3*: **SRP073813**, corresponde a perfiles transcriptómicos post-mortem del cerebro de individuos con alguna enfermedad neurodegenerativa o psiquiátrica. Dentro del dataset, se incluye el pH del cerebro al momento de recolectar la muestra, por lo que fue de interés la relación entre el pH y el perfil transcripómico. Por lo tanto, la pregunta biológica es ¿existe una expresión diferencial post-mortem en el cerebro relacionada al pH?
+
+A continuación se muestran todos los pasos que se siguieron en el análisis.
+
+# 1. Libraries and Workspace
+```{r libs, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center'}
+suppressPackageStartupMessages(library(recount3))
+suppressPackageStartupMessages(library(edgeR))
+suppressPackageStartupMessages(library(limma))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(pheatmap))
+```
+
+# 2. Data
+```{r data, eval=TRUE, echo=TRUE, fig.align='center', message=FALSE, warning=FALSE, include=TRUE}
+## Chosen project: SRP073813
+human_projects <- available_projects()
+
+## Create the rse object
+rse_SRP073813 <- create_rse(subset(
+  human_projects,
+  project == "SRP073813" & project_type == "data_sources"))
+
+## Compute reads
+assay(rse_SRP073813, "counts") <- compute_read_counts(rse_SRP073813)
+
+## Object data
+print(rse_SRP073813)
+```
+
+# 3. Cleaning data
+```{r clean, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center'}
+## Chosen project: ERP104512
+rse_SRP073813 <- expand_sra_attributes(rse_SRP073813)
+
+colData(rse_SRP073813)[,grepl("^sra_attribute", colnames(colData(rse_SRP073813)))]
+
+## Change variable type to numeric or factor
+rse_SRP073813$sra_attribute.age_at_death <- as.numeric(rse_SRP073813$sra_attribute.age_at_death)
+rse_SRP073813$sra_attribute.brain_ph <- as.numeric(rse_SRP073813$sra_attribute.brain_ph)
+rse_SRP073813$sra_attribute.brain_region <- factor(tolower(rse_SRP073813$sra_attribute.brain_region))
+rse_SRP073813$sra_attribute.clinical_diagnosis <- factor(tolower(rse_SRP073813$sra_attribute.clinical_diagnosis))
+rse_SRP073813$`sra_attribute.post-mortem_interval` <- as.numeric(rse_SRP073813$`sra_attribute.post-mortem_interval`)
+rse_SRP073813$sra_attribute.gender <- factor(rse_SRP073813$sra_attribute.gender)
+
+## Format ph variable
+rse_SRP073813$ph_factor <- factor(ifelse(rse_SRP073813$sra_attribute.brain_ph== 7, "neutral", ifelse(rse_SRP073813$sra_attribute.brain_ph < 7, "acidic","basic")))
+
+## Clean NA values inside the ph_factor variable
+rse_SRP073813 <- rse_SRP073813[,!is.na(rse_SRP073813$ph_factor)]
+```
+
+# 4. Filtering data
+```{r filtering, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center'}
+## Calculate the gene proportion
+rse_copy <- rse_SRP073813
+rse_SRP073813$assigned_gene_prop <- rse_SRP073813$recount_qc.gene_fc_count_all.assigned/rse_SRP073813$recount_qc.gene_fc_count_all.total
+
+## Check the distribution between pH classification
+with(colData(rse_SRP073813), tapply(assigned_gene_prop, ph_factor, summary))
+hist(rse_SRP073813$assigned_gene_prop)
+table(rse_SRP073813$assigned_gene_prop < 0.2)
+
+## There was a NA value in assigned_gene_prop
+rse_SRP073813 <- rse_SRP073813[,!is.na(rse_SRP073813$assigned_gene_prop)]
+rse_SRP073813 <- rse_SRP073813[,rse_SRP073813$assigned_gene_prop > 0.2]
+
+## Search for gene means and clean them
+gene_means <- rowMeans(assay(rse_SRP073813, "counts"))
+summary(gene_means) ## 0.2
+rse_SRP073813 <- rse_SRP073813[gene_means > 0.2,]
+
+## Final dimension
+dim(rse_SRP073813)
+
+## Obtain final data percentage and remove rsa copy
+round((nrow(rse_SRP073813)/nrow(rse_copy))*100,2)
+remove(rse_copy)
+```
+
+# 5. Normalize data
+```{r normalization, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center'}
+## Normalize the data using edgeR library
+dge <- DGEList(
+    counts = assay(rse_SRP073813, "counts"),
+    genes = rowData(rse_SRP073813)
+)
+dge <- calcNormFactors(dge)
+```
+
+# 6. Diferential Gene Expression
+```{r expression, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center'}
+## Plot the gene expression determined by the gene proportion for each pH factor
+ggplot(as.data.frame(colData(rse_SRP073813)), aes(y = assigned_gene_prop, x = ph_factor)) +
+    geom_boxplot() +
+    theme_bw(base_size = 20) +
+    ylab("Assigned Gene Prop") +
+    xlab("pH")
+
+## Set the model.matrix object (now with the gender factor at the beginning due to the biological question adjustment)
+mod <- model.matrix(~ sra_attribute.gender + ph_factor + assigned_gene_prop + sra_attribute.clinical_diagnosis,
+    data = colData(rse_SRP073813)
+)
+colnames(mod)
+
+## Create the mean variance trend or the differential expression analysis with Limma library
+vGene <- voom(dge, mod, plot = TRUE)
+
+eb_results <- eBayes(lmFit(vGene))
+de_results <- topTable(
+    eb_results,
+    coef = 2,
+    number = nrow(rse_SRP073813),
+    sort.by = "none"
+)
+dim(de_results)
+
+## Plot the pH_factors against the acidic pH
+plotMA(eb_results, coef = 3)
+plotMA(eb_results, coef = 4)
+volcanoplot(eb_results, coef = 3, names = de_results$gene_name)
+volcanoplot(eb_results, coef = 4, names = de_results$gene_name)
+```
+
+```{R heatmap, include=TRUE, echo=TRUE, warning=FALSE, message=FALSE, eval=TRUE, fig.align='center',fig.width=9, fig.height=9}
+## Extract the top 50 expressed genes
+exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 50, ]
+
+## Create a table with the top 50 genes and set the gene name
+df <- as.data.frame(colData(rse_SRP073813)[, c("ph_factor", "assigned_gene_prop", "sra_attribute.gender")])
+colnames(df) <- c("pH", "GeneProportion", "Gender")
+original.names <- rownames(exprs_heatmap)
+rownames(exprs_heatmap) <- rowRanges(rse_SRP073813)$gene_name[
+    match(rownames(exprs_heatmap), rowRanges(rse_SRP073813)$gene_id)
+]
+
+## Create the heatmap
+pheatmap(
+    exprs_heatmap,
+    cluster_rows = TRUE,
+    cluster_cols = TRUE,
+    show_rownames = TRUE,
+    show_colnames = FALSE,
+    annotation_col = df
+)
+```
+
+# 7. Conclusions
+A lo largo de este proyecto se pusieron en práctica los conocimeintos obtenidos en el análisis de datos de RNAseq del proyecto: SRP073813, el cual es un dataset de 352 muestras de tejido cerebral post-mortem de humanos con condiciones clínicas. Se esperaba que hubiese algún patrón con respecto al pH reportado en los tejidos. No obstante, se encontró una expresión diferencial por el dimorfismo sexual, lo cual podría ser un objeto de estudio (como por lo general sucede en este caso particular) a futuro. El gen KDM5C, el cual codifica para una demetilasa crucial implicada en la regulación de una cascada de genes relacionados con funciones relacionadas al sistema nervioso, se encuentra con niveles de expresión similares entre los grupos. El gen ZFX que codifica para dedos de Zinc, también se encuentra con una expresión constante entre los grupos. Los genes TSIX y XIST se encuentran sobreexpresados en el grupo femenino debido al dimorfismo sexual, no obstante, esta parece ser la expresión diferencial más grande entre los grupos, por lo que su futuro estudio puede ser de importancia. Por otro lado, parece haber un patrón en la expresión diferencial por el dimorfismo sexual; el grupo de los hombres presenta niveles de expresión cercanos a 0 o sobreexpresados en la mayoría de los genes, mientras que el grupo de las mujeres presentan el patrón de expresión opuesto a lo antes descrito. Me causa curiosidad saber por qué se presentan niveles de expresión de PCDH11Y en el grupo de las mujeres cuando es un gen ligado al cromosoma Y. 
+
+Finalmente, reitero que esperaba encontrar un patrón de expresión delimitado por el pH, sin embargo, la expresión diferencial tomando en cuenta el dimorfismo sexual, fue mucho más evidente, lo que resalta la importancia de incluir a varios sexos como objeto de estudio. 
+
+Creo que el módulo me ayudó a entender de mejor manera al expresión diferencial y a saber cómo interpretarla. Espero poder tener la oportunidad de trabajar en esto más adelante.
+
+# References
+1. Wilks, C., Zheng, S.C., Chen, F.Y. et al. recount3: summaries and queries for large-scale RNA-seq expression and splicing. Genome Biol 22, 323 (2021). https://doi.org/10.1186/s13059-021-02533-6
+2. Ramaker RC, Bowling KM, Lasseigne BN, Hagenauer MH, Hardigan AA, Davis NS, Gertz J, Cartagena PM, Walsh DM, Vawter MP, Jones EG, Schatzberg AF, Barchas JD, Watson SJ, Bunney BG, Akil H, Bunney WE, Li JZ, Cooper SJ, Myers RM. Post-mortem molecular profiling of three psychiatric disorders. Genome Med. 2017 Jul 28;9(1):72. doi: 10.1186/s13073-017-0458-5. PMID: 28754123; PMCID: PMC5534072.
