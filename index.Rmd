@@ -19,11 +19,10 @@ indent: true
 ---
 
 # About the project
-Este proyecto tiene la finalidad de poner en práctica los conocimientos adquiridos en el módulo impartido por el Ph.D. Leonardo Collado-Torres para el análisis de datos de secuenciación masiva enfocado al análisis de datos de RNAseq. 
+Este proyecto tiene la finalidad de poner en práctica los conocimientos adquiridos en el módulo impartido por el Ph.D. Leonardo Collado-Torres para el análisis de datos de secuenciación masiva enfocado al análisis de datos de RNAseq. El proyecto se encuentra aquí: [**PROYECTO RNAseq**](https://bernardochomboalvarez.github.io/RNAseq_project_2024/Workflow.html).
 
 
-## Dataset: **SRP073813**
-
+### Dataset: **SRP073813**
 Los datos utilizados para este proyecto fueron obtenidos del estudio [Post-mortem molecular profiling of three psychiatric disorders](https://genomemedicine.biomedcentral.com/articles/10.1186/s13073-017-0458-5).  
 
 ### Abstract 
